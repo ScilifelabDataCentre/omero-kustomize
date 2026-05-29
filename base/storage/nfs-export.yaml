@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nfs-export-script
+data:
+  nfs-export.sh: |
+    #!/bin/bash
+    function start()
+    {
+        for i in "$@"; do
+            echo "$i *(rw,fsid=0,insecure)" >> /etc/exports
+        done
+        /usr/sbin/rpcbind -w
+        mount -t nfsd nfsd /proc/fs/nfsd
+        /usr/sbin/rpc.mountd -N 2
+        /usr/sbin/exportfs -rav
+        /usr/sbin/rpc.nfsd 10
+        echo "NFS started"
+    }
+
+    function stop()
+    {
+        echo "Stopping NFS"
+        /usr/sbin/rpc.nfsd 0
+        /usr/sbin/exportfs -au
+        /usr/sbin/exportfs -f
+        pkill -TERM rpc.mountd
+        umount /proc/fs/nfsd
+        echo > /etc/exports
+        exit 0
+    }
+    ulimit -n 65535
+    trap stop TERM
+    start "$@"
+    while true; do
+        sleep 5
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-export
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nfs-export
+  template:
+    metadata:
+      labels:
+        app: nfs-export
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels: { app: omeroserver }
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: nfs-export
+        image: ghcr.io/scilifelabdatacentre/omero-nfs-export:latest
+        securityContext:
+          privileged: true
+        command:
+          - /bin/bash
+        args:
+          - /script/nfs-export.sh
+          - /omero
+        volumeMounts:
+        - name: omero
+          mountPath: /omero
+        - name: nfs-export-script
+          mountPath: /script
+        livenessProbe:
+          tcpSocket:
+            port: 2049
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["sh", "-c", "showmount -e localhost >/dev/null 2>&1"]
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+      volumes:
+      - name: omero
+        persistentVolumeClaim:
+          claimName: omero
+      - name: nfs-export-script
+        configMap:
+          name: nfs-export-script
+          defaultMode: 0755
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nfs-export
+spec:
+  selector:
+    app: nfs-export
+  ports:
+    - name: nfs
+      port: 2049
+      protocol: TCP
+    - name: rpcbind-tcp
+      port: 111
+      protocol: TCP
+    - name: mountd
+      port: 20048
+      protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: placeholder-omero-nfs
+spec:
+  persistentVolumeReclaimPolicy: Retain
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: nfs-export.placeholder.svc.cluster.local
+    path: /
+  storageClassName: ""
+  capacity:
+    storage: 100Gi
+  claimRef:
+    name: omero-nfs
+    namespace: placeholder

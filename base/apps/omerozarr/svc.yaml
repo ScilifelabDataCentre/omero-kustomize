@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: omerozarr
+spec:
+  selector: { app: omerozarr }
+  ports:
+    - { port: 8080, targetPort: 8080 }
+  type: ClusterIP

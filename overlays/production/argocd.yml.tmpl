@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: __NS__
+  namespace: argocd
+spec:
+  destination:
+    namespace: __NS__
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __BRANCH__
+    path: __PATH__
+    kustomize:
+      patches:
+      - target:
+          kind: PersistentVolumeClaim
+          name: omero-nfs
+        patch: |-
+          - op: replace
+            path: /spec/volumeName
+            value: __NS__-omero-nfs
+          - op: replace
+            path: /spec/resources/requests/storage
+            value: __STORAGE_SIZE__
+      - target:
+          kind: PersistentVolume
+          name: placeholder-omero-nfs
+        patch: |-
+          - op: replace
+            path: /spec/nfs/server
+            value: nfs-export.__NS__.svc.cluster.local
+          - op: replace
+            path: /spec/claimRef/namespace
+            value: __NS__
+          - op: replace
+            path: /metadata/name
+            value: __NS__-omero-nfs
+          - op: replace
+            path: /spec/capacity/storage
+            value: __STORAGE_SIZE__
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

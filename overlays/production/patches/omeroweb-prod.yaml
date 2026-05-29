@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omeroweb
+spec:
+  template:
+    spec:
+      containers:
+        - name: omeroweb
+          startupProbe:
+            httpGet:
+              httpHeaders:
+                - name: Host
+                  value: omero.example.com
+          readinessProbe:
+            httpGet:
+              httpHeaders:
+                - name: Host
+                  value: omero.example.com
+          livenessProbe:
+            httpGet:
+              httpHeaders:
+                - name: Host
+                  value: omero.example.com
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omeroweb-env
+data:
+  CONFIG_omero_web_csrf__trusted__origins: '["https://omero.example.com"]'
+  CONFIG_omero_web_allowed__hosts: '["omero.example.com","localhost","127.0.0.1",".svc",".svc.cluster.local"]'

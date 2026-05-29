@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omerothumbnail-config
+data:
+  config.yaml: |
+    port: 8080
+    omero:
+      host: omeroserver
+      port: 4064
+    omero.web:
+      session_cookie_name: "sessionid"
+    session-store:
+      type: "redis"
+      synchronicity: "async"
+      uri: "redis://:@redis:6379/0"
+    jmx-metrics:
+      enabled: true

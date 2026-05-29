@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: omeroworker
+spec:
+  serviceName: omeroworker
+  replicas: 3
+  selector:
+    matchLabels: { app: omeroworker }
+  template:
+    metadata:
+      labels: { app: omeroworker }
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+      - name: wait-for-registry
+        image: busybox
+        command: ["sh","-lc",'until nc -z omeroserver 4061; do echo "waiting 4061"; sleep 2; done']
+      containers:
+      - name: omeroworker
+        image: openmicroscopy/omero-server
+        ports: [ {containerPort: 4070} ]
+        env:
+        - {name: ICE_CONFIG, value: /opt/omero/server/OMERO.server/etc/ice.config}
+        - {name: CONFIG_omero_host, value: omeroserver}
+        - {name: CONFIG_omero_client_icetransports, value: "ssl,tcp"}
+        - {name: CONFIG_omero_fs_host, value: omeroserver}
+        - {name: OMERO_WORKER_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+        - {name: MY_POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}
+        - {name: PATH, value: /opt/omero/server/venv3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/ice/bin}
+        - {name: ICEGRID_USER, valueFrom: {secretKeyRef: {name: omero-secrets, key: ICEGRID_USER}}}
+        - {name: ICEGRID_PASS, valueFrom: {secretKeyRef: {name: omero-secrets, key: ICEGRID_PASS}}}
+        volumeMounts:
+        - { name: worker-startup, mountPath: /startup/99-run.sh, subPath: 99-run.sh }
+        - { name: worker-ice-config, mountPath: /opt/omero/server/OMERO.server/etc/templates/ice.config, subPath: ice.config }
+        - { name: worker-config, mountPath: /opt/omero/server/OMERO.server/etc/templates/worker.cfg, subPath: worker.cfg }
+        - { name: omero-data, mountPath: /OMERO }
+        command: ["/bin/bash"]
+        args: ["/startup/99-run.sh"]
+      volumes:
+      - name: worker-startup
+        configMap: { name: worker-startup-script, defaultMode: 0755 }
+      - name: worker-ice-config
+        configMap: { name: worker-ice-config }
+      - name: worker-config
+        configMap: { name: worker-config-template }
+      - name: omero-data
+        persistentVolumeClaim: { claimName: omero-nfs }

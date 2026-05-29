@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omerozarr
+  labels: { app: omerozarr }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: omerozarr }
+  template:
+    metadata:
+      labels: { app: omerozarr }
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: omerozarr
+          image: openmicroscopy/omero-ms-zarr
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          env:
+            - name: CONFIG_omero_db_host
+              value: "database"
+            - name: CONFIG_omero_db_name
+              valueFrom: { secretKeyRef: { name: omero-secrets, key: POSTGRES_DB } }
+            - name: CONFIG_omero_db_user
+              valueFrom: { secretKeyRef: { name: omero-secrets, key: POSTGRES_USER } }
+            - name: CONFIG_omero_db_pass
+              valueFrom: { secretKeyRef: { name: omero-secrets, key: POSTGRES_PASSWORD } }
+            - name: CONFIG_omero_ms_zarr_net_path_image
+              value: "/idr/zarr/v0.1/{image}.zarr/"
+          volumeMounts:
+            - { name: omero-data, mountPath: /OMERO }
+          ports:
+            - { containerPort: 8080 }
+          readinessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 5
+      volumes:
+        - name: omero-data
+          persistentVolumeClaim: { claimName: omero-nfs }

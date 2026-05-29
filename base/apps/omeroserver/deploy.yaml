@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omeroserver
+  labels: { app: omeroserver }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: omeroserver }
+  template:
+    metadata:
+      labels: { app: omeroserver }
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          securityContext: { runAsUser: 0 }
+          command: ["sh","-c","/init/init.sh"]
+          volumeMounts:
+            - { name: omero-data, mountPath: /OMERO }
+            - { name: omero-init, mountPath: /init, readOnly: true }
+            - { name: ice-config, mountPath: /config/ice.config, subPath: ice.config, readOnly: true }
+      containers:
+        - name: omeroserver
+          image: ghcr.io/scilifelabdatacentre/omero-server-extended
+          imagePullPolicy: IfNotPresent
+          securityContext: { runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true }
+          ports:
+            - { containerPort: 4061 }
+            - { containerPort: 4062 }
+            - { containerPort: 4063 }
+            - { containerPort: 4064 }
+          envFrom:
+            - configMapRef: { name: omeroserver-env }
+          volumeMounts:
+            - { name: omero-data, mountPath: /OMERO }
+          env:
+            - name: CONFIG_omero_db_name
+              valueFrom: { secretKeyRef: { name: omero-secrets, key: POSTGRES_DB } }
+            - name: CONFIG_omero_db_user
+              valueFrom: { secretKeyRef: { name: omero-secrets, key: POSTGRES_USER } }
+            - name: CONFIG_omero_db_pass
+              valueFrom: { secretKeyRef: { name: omero-secrets, key: POSTGRES_PASSWORD } }
+            - name: ROOTPASS
+              valueFrom: { secretKeyRef: { name: omero-secrets, key: OMERO_ROOT_PASSWORD } }
+            - name: CONFIG_omero_master_host
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            - { name: CONFIG_omero_host, value: omeroserver }
+            - { name: CONFIG_omero_fs_host, value: omeroserver }
+            - { name: ICE_CONFIG, value: "/OMERO/etc/ice.config" }
+          startupProbe:
+            tcpSocket: { port: 4064 }
+            periodSeconds: 10
+            failureThreshold: 90
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket: { port: 4064 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: 4064 }
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh","-c","echo 'Gracefully stopping OMERO server...' && /opt/omero/server/OMERO.server/bin/omero admin stop || true"]
+      volumes:
+        - name: omero-data
+          persistentVolumeClaim: { claimName: omero }
+        - name: omero-init
+          configMap:
+            name: omeroserver-init
+            defaultMode: 0755
+        - name: ice-config
+          configMap:
+            name: omeroserver-ice-config

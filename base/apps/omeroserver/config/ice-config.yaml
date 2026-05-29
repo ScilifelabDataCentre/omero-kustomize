@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omeroserver-ice-config
+data:
+  ice.config: |
+    IceGrid.Registry.Client.Endpoints=tcp -h 0.0.0.0 -p 4061
+    IceGrid.Registry.Server.Endpoints=tcp -h 0.0.0.0 -p 4062
+    IceGrid.Registry.Internal.Endpoints=tcp -h 0.0.0.0 -p 4062
+    IceGrid.Registry.DynamicRegistration=1
+
+    Ice.Default.Locator=IceGrid/Locator:tcp -h omeroserver -p 4061
+
+    IceGrid.Registry.Data=/OMERO/var/registry

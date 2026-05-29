@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - ingress
+  # - sealedsecret-omero.yaml  # uncomment if using Sealed Secrets
+labels:
+  - pairs:
+      env: production
+
+images:
+  - name: postgres
+    newTag: "14-alpine"
+  - name: ghcr.io/scilifelabdatacentre/omero-server-extended
+    newTag: "v1.0.0"
+  - name: openmicroscopy/omero-web-standalone
+    newTag: "5.29.0"
+  - name: openmicroscopy/omero-ms-thumbnail
+    newTag: "0.5.8"
+  - name: openmicroscopy/omero-ms-zarr
+    newTag: "0.1.6"
+  - name: redis
+    newTag: "7-alpine"
+  - name: busybox
+    newTag: "1.37.0"
+
+patches:
+  - path: patches/database-prod.yaml
+  - path: patches/omeroserver-prod.yaml
+  - path: patches/omeroweb-prod.yaml
+  - path: patches/omerothumbnail-prod.yaml
+  - path: patches/omerozarr-prod.yaml
+  - path: patches/omeroworker-prod.yaml
+  - path: patches/redis-prod.yaml
+  - path: patches/pvc-prod.yaml

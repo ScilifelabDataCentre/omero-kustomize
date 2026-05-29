@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omeroweb
+  labels: { app: omeroweb }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: omeroweb } }
+  template:
+    metadata: { labels: { app: omeroweb } }
+    spec:
+      containers:
+        - name: omeroweb
+          image: openmicroscopy/omero-web-standalone
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 4080 }]
+          envFrom:
+            - configMapRef:
+                name: omeroweb-env
+          startupProbe:
+            httpGet:
+              path: "/"
+              port: 4080
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 4080
+            initialDelaySeconds: 40
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: "/"
+              port: 4080
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            failureThreshold: 3

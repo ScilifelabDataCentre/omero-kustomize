@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omeroweb-env
+data:
+  OMEROHOST: "omeroserver"
+  REDIS_HOST: "redis"
+  CONFIG_omero_web_server__list: '[["omeroserver", 4064, "omero"]]'
+
+  CONFIG_omero_web_caches: '{"default":{"BACKEND":"django_redis.cache.RedisCache","LOCATION":"redis://redis:6379/0"}}'
+  CONFIG_omero_web_session__engine: "django.contrib.sessions.backends.cache"
+  CONFIG_omero_web_session__cookie__name: "sessionid"
+
+  CONFIG_omero_web_secure: "false"
+  CONFIG_omero_web_secure__proxy__ssl__header: '["HTTP_X_FORWARDED_PROTO", "https"]'
+  CONFIG_omero_web_use__x__forwarded__host: "true"
+
+  CONFIG_omero_web_csrf__trusted__origins: '["http://localhost","https://localhost"]'
+  CONFIG_omero_web_allowed__hosts: '["localhost","127.0.0.1",".svc",".svc.cluster.local"]'

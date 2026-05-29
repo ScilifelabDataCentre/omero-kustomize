@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      env: dev
+
+images:
+  - name: postgres
+    newTag: "14-alpine"
+  - name: ghcr.io/scilifelabdatacentre/omero-server-extended
+    newTag: "v1.0.0"
+  - name: openmicroscopy/omero-web-standalone
+    newTag: "5.29.0"
+  - name: openmicroscopy/omero-ms-thumbnail
+    newTag: "0.5.8"
+  - name: openmicroscopy/omero-ms-zarr
+    newTag: "0.1.6"
+  - name: redis
+    newTag: "7-alpine"
+  - name: busybox
+    newTag: "1.37.0"
+
+patches:
+  - path: patches/database-dev.yaml
+  - path: patches/omeroserver-dev.yaml
+  - path: patches/omeroweb-dev.yaml
+  - path: patches/omerothumbnail-dev.yaml
+  - path: patches/omerozarr-dev.yaml
+  - path: patches/omeroworker-dev.yaml
+  - path: patches/redis-dev.yaml
+  - path: patches/pvc-dev.yaml

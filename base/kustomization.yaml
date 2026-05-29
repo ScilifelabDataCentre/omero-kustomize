@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - storage
+  - apps/database
+  - apps/redis
+  - apps/omeroserver
+  - apps/omeroweb
+  - apps/omerozarr
+  - apps/omerothumbnail
+  - apps/omeroworkers
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: omero

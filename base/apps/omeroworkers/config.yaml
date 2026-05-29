@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-ice-config
+data:
+  ice.config: |
+    Ice.Default.Locator=IceGrid/Locator:tcp -h omeroserver -p 4061
+    omero.host=omeroserver
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config-template
+data:
+  worker.cfg: |
+    # OMERO worker configuration
+    IceGrid.Node.Endpoints=tcp -h ${WORKER_ADDR} -p 4070
+    IceGrid.Node.Name=${OMERO_WORKER_NAME}
+    IceGrid.Node.Data=var/${OMERO_WORKER_NAME}
+    IceGrid.Node.Output=var/log
+    Ice.StdOut=var/log/${OMERO_WORKER_NAME}.out
+    Ice.StdErr=var/log/${OMERO_WORKER_NAME}.err
+    Ice.Default.Host=${WORKER_ADDR}
+    Ice.Default.Locator=IceGrid/Locator:tcp -h omeroserver -p 4061
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-startup-script
+data:
+  99-run.sh: |
+    #!/bin/bash
+    set -eu
+    WORKER_ADDR=${MY_POD_IP}
+    OMERO_WORKER_NAME=${OMERO_WORKER_NAME}
+    sed -e "s/\${WORKER_ADDR}/$WORKER_ADDR/g" \
+        -e "s/\${OMERO_WORKER_NAME}/$OMERO_WORKER_NAME/g" \
+        /opt/omero/server/OMERO.server/etc/templates/worker.cfg > \
+        /opt/omero/server/OMERO.server/etc/${OMERO_WORKER_NAME}.cfg
+    cp /opt/omero/server/OMERO.server/etc/templates/ice.config /opt/omero/server/OMERO.server/etc/ice.config
+    echo "Waiting for IceGrid registry @ omeroserver:4061 …"
+    until (echo >/dev/tcp/omeroserver/4061) >/dev/null 2>&1; do
+      echo "Waiting for IceGrid registry @ omeroserver:4061 …"
+      sleep 2
+    done
+    /opt/ice/bin/icegridadmin \
+      --Ice.Default.Locator="IceGrid/Locator:tcp -h omeroserver -p 4061" \
+      --IceGridAdmin.Username="$ICEGRID_USER" \
+      --IceGridAdmin.Password="$ICEGRID_PASS" \
+      -e "registry list" || echo "icegridadmin check failed (continuing)"
+    echo "Starting node ${OMERO_WORKER_NAME}"
+    export PATH="/opt/omero/server/venv3/bin:$PATH"
+    exec /opt/omero/server/OMERO.server/bin/omero node "${OMERO_WORKER_NAME}" start --foreground
