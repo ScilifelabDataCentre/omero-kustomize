@@ -130,4 +130,4 @@ The `omero-secrets` Secret must contain these keys:
 
 ## Contact
 
-For any questions or to get in contact, please reach the team at omero@scilifelab.se or open an issue in this repository. **
+For any questions or to get in contact, please reach the team at omero@scilifelab.se or open an issue in this repository.
