@@ -152,3 +152,7 @@ The `omero-secrets` Secret must contain these keys:
 | `OMERO_ROOT_PASSWORD` | OMERO Server |
 | `ICEGRID_USER` | OMERO Workers |
 | `ICEGRID_PASS` | OMERO Workers |
+
+## Contact
+
+For any questions or to get in contact, please reach the team at omero@scilifelab.se or open an issue in this repository.
