@@ -63,7 +63,19 @@ graph TD
 | **OMERO Thumbnail** | Thumbnail generation microservice |
 | **OMERO MS Zarr** | Streams OMERO images as OME-Zarr on the fly |
 | **Redis** | Session caching for OMERO Web |
-| **NFS Export** | In-cluster NFS server providing ReadWriteMany access to OMERO data |
+| **NFS Export** | Optional in-cluster NFS server providing ReadWriteMany access to OMERO data |
+
+## Storage
+
+`omeroworker`, `omerozarr` and `omerothumbnail` need shared access to the OMERO data
+directory. We used `ReadWriteOnce` StorageClass that is available in our cluster, so we run an
+in-cluster NFS export ([base/storage/nfs-export.yaml](base/storage/nfs-export.yaml)) to
+re-export the `omero` PVC as the RWX `omero-nfs` claim.
+
+If an RWX StorageClass is supported in your cluster, you can drop the NFS export and adapt the design:
+- remove `nfs-export.yaml` from [base/storage/kustomization.yaml](base/storage/kustomization.yaml),
+- in [base/storage/pvcs.yaml](base/storage/pvcs.yaml) give the `omero-nfs` claim your RWX
+  `storageClassName` instead of `storageClassName: ""` and `volumeName`.
 
 ## Directory Structure
 

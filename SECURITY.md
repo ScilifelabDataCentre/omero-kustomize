@@ -45,7 +45,9 @@ especially on a shared or multi-tenant cluster.
 - **The NFS export pod is privileged.** `nfs-export` in
   [base/storage/nfs-export.yaml](base/storage/nfs-export.yaml) runs with
   `privileged: true` because it mounts `nfsd` and starts a kernel NFS server.
-  It is defined in `base/`, so both overlays are affected by this.
+  It is defined in `base/`, so both overlays are affected by this. It is only needed
+  because no `ReadWriteMany` StorageClass was available in our cluster; removing it (see
+  [Storage](README.md#storage)) removes the privileged pod.
 
 - **Two init containers run as root.** `fix-permissions` in
   [base/apps/omeroserver/deploy.yaml](base/apps/omeroserver/deploy.yaml) and `fix-perms` in
