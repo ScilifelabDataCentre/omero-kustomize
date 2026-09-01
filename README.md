@@ -1,6 +1,8 @@
 # OMERO on Kubernetes with Kustomize
 
-Deploy [OMERO](https://www.openmicroscopy.org/omero/) on any Kubernetes cluster using Kustomize overlays.
+Deploy [OMERO](https://www.openmicroscopy.org/omero/) on Kubernetes using Kustomize overlays.
+
+The in-cluster NFS export requires a **privileged** pod, so these manifests require a cluster that permits privileged pods. Please refer to [Prerequisites](#prerequisites) for more details.
 
 ## Architecture
 
@@ -71,23 +73,46 @@ omero-kustomize/
 │   ├── apps/                    # Application deployments
 │   └── storage/                 # PVCs and NFS export
 └── overlays/
-    ├── dev/                     # Lightweight dev/test overlay (localhost, small PVCs)
-    └── production/              # Production overlay (ingress, larger resources)
+    ├── dev/                     # Lightweight overlay, no ingress or domain required
+    └── production/              # Production overlay (Gateway API, larger resources)
 ```
 
 ## Prerequisites
 
-- Kubernetes cluster 
-- `kubectl` configured to access your cluster
-- A StorageClass that supports `ReadWriteOnce` (for `omero` and `database` PVCs)
-- (Production) A Gateway API implementation or Ingress controller # necessary for the production overlay
-- (Production) TLS certificates for your domain # necessary for the production overlay
+Both overlays:
+
+- A Kubernetes cluster and `kubectl` configured to access it
+- **Cluster-admin rights.** The NFS export defines a cluster-scoped `PersistentVolume` in
+  [base/storage/nfs-export.yaml](base/storage/nfs-export.yaml).
+- **A cluster that permits privileged pods.** The in-cluster NFS export server runs with
+  `privileged: true` and mounts `nfsd`, so the `nfsd` kernel module must be available on the node.
+- A StorageClass that supports `ReadWriteOnce` (for the `omero` and `database` PVCs)
+- Nodes that can co-locate `omeroserver` and `nfs-export`. The `omero` PVC is `ReadWriteOnce` and is
+  mounted by both, which works only because the NFS export declares a required pod affinity onto the
+  OMERO server's node.
+
+Production overlay only:
+
+- Gateway API v1 CRDs, an implementation, and an existing `Gateway` to attach to. The overlay ships
+  an `HTTPRoute`, not an `Ingress`.
+- A domain and TLS certificates for it.
 
 ## Deployment
 
+Both overlays deploy the same applications. They differ in how OMERO is reached from outside the
+cluster, and in how they are sized.
+
+| | Dev overlay | Production overlay |
+|---|---|---|
+| Gateway API | Not required | Required |
+| Domain and TLS | Not required | Required |
+| External access | `kubectl port-forward`, or add a NodePort/LoadBalancer Service | Gateway for OMERO.web, NodePort 30012 for OMERO.insight |
+| Resources and storage | Small | Production-sized |
+
+
 ### Dev Overlay
 
-Lightweight overlay for development and testing with small resource limits, no ingress, and localhost access via port-forward.
+Lightweight overlay for development and testing with small resource limits. Needs no Gateway API, no domain, and no TLS; access is via port-forward.
 
 See **[overlays/dev/README.md](overlays/dev/README.md)** for full deployment instructions including:
 - Quick start with `kubectl apply -k`
@@ -112,7 +137,7 @@ See **[overlays/production/README.md](overlays/production/README.md)** for full 
 | Resource limits | `overlays/*/patches/<component>-*.yaml` |
 | Image versions | `overlays/*/kustomization.yaml` (images section) |
 | Worker replicas | `overlays/*/patches/omeroworker-*.yaml` |
-| NodePort number | `overlays/production/ingress/omeroserver-nodeport.yaml` |
+| NodePort number | `overlays/production/ingress/omeroserver-nodeport.yaml`, or patch `omeroserver-ext` from your own overlay (see [production README](overlays/production/README.md#3-configure-the-gateway--nodeport)) |
 | Gateway reference | `overlays/production/ingress/omeroweb-routes.yaml` |
 
 ## Secrets Reference

@@ -22,12 +22,16 @@ kubectl -n "$NS" create secret generic omero-secrets \
 
 ### 2. (Optional) Set your StorageClass
 
-Edit `patches/pvc-dev.yaml` and change the `storageClassName` to match your cluster:
+By default the PVCs omit `storageClassName`, so they use the cluster's default StorageClass. To pin
+a specific one, uncomment and edit it in `patches/pvc-dev.yaml`:
 
 ```yaml
 spec:
-  storageClassName: "cinder-nova-xfs"  # change to your storage class
+  storageClassName: "YOUR_STORAGE_CLASS"
 ```
+
+The `omero` and `database` claims need `ReadWriteOnce`. If your cluster has no default StorageClass,
+the PVCs stay `Pending` until you set one here.
 
 ### 3. Deploy
 

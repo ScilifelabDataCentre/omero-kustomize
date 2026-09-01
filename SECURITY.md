@@ -33,11 +33,21 @@ images it uses (for example `openmicroscopy/*` and
 their respective projects. This policy covers the manifests and configuration
 maintained in this repository.
 
-## Handling secrets
+## Security model and assumptions
 
-Secrets (the `omero-secrets` Secret) must **never** be committed to this
-repository. They are supplied at deploy time on the cluster (see the
-[Secrets Reference](README.md#secrets-reference) and [CONTRIBUTING.md](CONTRIBUTING.md)).
+These manifests are written for a **trusted, single-tenant cluster**. The points below
+are known properties of the current design, not undisclosed vulnerabilities, and they do
+not need to be reported through the process above. Review them before deploying,
+especially on a shared or multi-tenant cluster.
 
-If a secret is ever committed, treat it as compromised: rotate the affected
-credentials immediately and remove the value from the repository history.
+### Privileged and root workloads
+
+- **The NFS export pod is privileged.** `nfs-export` in
+  [base/storage/nfs-export.yaml](base/storage/nfs-export.yaml) runs with
+  `privileged: true` because it mounts `nfsd` and starts a kernel NFS server.
+  It is defined in `base/`, so both overlays are affected by this.
+
+- **Two init containers run as root.** `fix-permissions` in
+  [base/apps/omeroserver/deploy.yaml](base/apps/omeroserver/deploy.yaml) and `fix-perms` in
+  [base/apps/database/deploy.yaml](base/apps/database/deploy.yaml) use `runAsUser: 0` to
+  chown their volumes before the application container starts.

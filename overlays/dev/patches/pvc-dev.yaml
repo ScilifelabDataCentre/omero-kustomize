@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: omero
 spec:
-  storageClassName: "cinder-nova-xfs" # change to your storage class
+  # storageClassName: "YOUR_STORAGE_CLASS"  # omitted: uses the cluster default
   resources:
     requests:
       storage: 16Gi
@@ -13,7 +13,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: database
 spec:
-  storageClassName: "cinder-nova" # change to your storage class
+  # storageClassName: "YOUR_STORAGE_CLASS"  # omitted: uses the cluster default
   resources:
     requests:
       storage: 2Gi
