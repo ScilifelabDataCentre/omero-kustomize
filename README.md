@@ -2,7 +2,7 @@
 
 Deploy [OMERO](https://www.openmicroscopy.org/omero/) on Kubernetes using Kustomize overlays.
 
-The in-cluster NFS export requires a **privileged** pod, so these manifests require a cluster that permits privileged pods. Please refer to [Prerequisites](#prerequisites) for more details.
+The in-cluster NFS export requires a **privileged** pod, so these manifests require a cluster that permits privileged pods. Please refer to [Prerequisites](#prerequisites) and [Storage Requirements](#storage-requirements) for more details.
 
 ## Architecture
 
@@ -65,17 +65,6 @@ graph TD
 | **Redis** | Session caching for OMERO Web |
 | **NFS Export** | Optional in-cluster NFS server providing ReadWriteMany access to OMERO data |
 
-## Storage
-
-`omeroworker`, `omerozarr` and `omerothumbnail` need shared access to the OMERO data
-directory. We used `ReadWriteOnce` StorageClass that is available in our cluster, so we run an
-in-cluster NFS export ([base/storage/nfs-export.yaml](base/storage/nfs-export.yaml)) to
-re-export the `omero` PVC as the RWX `omero-nfs` claim.
-
-If an RWX StorageClass is supported in your cluster, you can drop the NFS export and adapt the design:
-- remove `nfs-export.yaml` from [base/storage/kustomization.yaml](base/storage/kustomization.yaml),
-- in [base/storage/pvcs.yaml](base/storage/pvcs.yaml) give the `omero-nfs` claim your RWX
-  `storageClassName` instead of `storageClassName: ""` and `volumeName`.
 
 ## Directory Structure
 
@@ -108,6 +97,18 @@ Production overlay only:
 - Gateway API v1 CRDs, an implementation, and an existing `Gateway` to attach to. The overlay ships
   an `HTTPRoute`, not an `Ingress`.
 - A domain and TLS certificates for it.
+
+### Storage Requirements
+
+`omeroworker`, `omerozarr` and `omerothumbnail` need shared access to the OMERO data
+directory. We used `ReadWriteOnce` StorageClass that is available in our cluster, so we run an
+in-cluster NFS export ([base/storage/nfs-export.yaml](base/storage/nfs-export.yaml)) to
+re-export the `omero` PVC as the RWX `omero-nfs` claim.
+
+If an RWX StorageClass is supported in your cluster, you can drop the NFS export and adapt the design:
+- remove `nfs-export.yaml` from [base/storage/kustomization.yaml](base/storage/kustomization.yaml),
+- in [base/storage/pvcs.yaml](base/storage/pvcs.yaml) give the `omero-nfs` claim your RWX
+  `storageClassName` instead of `storageClassName: ""` and `volumeName`.
 
 ## Deployment
 
